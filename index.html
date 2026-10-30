@@ -176,7 +176,7 @@ nav.tabs .plus svg{width:26px;height:26px}
 <div id="sheet-root"></div>
 <div id="toast-root"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script>
 const CATS = {
@@ -582,7 +582,8 @@ async function doAuth(){
     }
   }catch(e){
     const m=e?.message||'';
-    S.authErr=/Invalid login/i.test(m)?'Email ou mot de passe incorrect.':/not confirmed/i.test(m)?"Ton email n'est pas encore confirmé. Ouvre le lien reçu par email.":/already registered/i.test(m)?'Ce compte existe déjà. Connecte-toi.':/signups? not allowed|disabled/i.test(m)?'La création de compte est fermée.':/fetch|network/i.test(m)?'Pas de connexion internet.':m||'Connexion impossible.';
+    S.authErr=/Invalid login/i.test(m)?'Email ou mot de passe incorrect.':/not confirmed/i.test(m)?"Ton email n'est pas encore confirmé. Ouvre le lien reçu par email.":/already registered/i.test(m)?'Ce compte existe déjà. Connecte-toi.':/signups? not allowed/i.test(m)?'La création de compte est fermée dans Supabase.':/fetch|network/i.test(m)?'Pas de connexion internet.':'Connexion impossible.';
+    S.authErr+=m?' (Détail : '+m+')':'';
   }finally{S.authBusy=false;if(S.status==='auth'||S.status==='config'){render();const el=document.getElementById('au-email');if(el)el.value=email}}
 }
 
