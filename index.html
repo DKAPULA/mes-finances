@@ -136,6 +136,15 @@ textarea.field{resize:vertical;min-height:60px}
 .sw[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--bg)}
 .check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
 .check input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}
+.pie{display:flex;justify-content:center}.pie svg{width:min(240px,70vw);height:auto}
+.leg{display:grid;grid-template-columns:10px 1fr auto 48px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.list .leg:last-child{border-bottom:0}.leg .n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.leg b{text-align:right}
+.cal-h,.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-h span{text-align:center;font-size:11.5px;font-weight:600;color:var(--muted)}
+.day-c{border:1px solid var(--line);background:var(--surface);border-radius:10px;min-height:52px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;min-width:0}
+.day-c.has{background:color-mix(in srgb,var(--expense) calc(var(--lvl)*38%),var(--surface));border-color:color-mix(in srgb,var(--expense) calc(var(--lvl)*50%),var(--line))}
+.day-c .d{font-size:12.5px;font-weight:600}.day-c .v{font-size:10.5px;font-weight:700;color:var(--expense);white-space:nowrap}
+.day-c.today{outline:2px solid var(--accent);outline-offset:-2px}
 /* chart */
 .chart svg{width:100%;height:auto;display:block}
 .legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
@@ -447,9 +456,53 @@ function opsList(){
   return h;
 }
 
+let BVIEW='list';try{BVIEW=localStorage.getItem('bview')||'list'}catch(e){}
 function viewBudgets(){
-  const st=monthStats(S.month);
   let h=`<div class="top"><h1>Budgets</h1>${monthSwitch()}</div>`;
+  h+=`<div class="seg">${[['list','Limites'],['pie','Camembert'],['cal','Calendrier']].map(([k,n])=>`<button data-bview="${k}" aria-pressed="${BVIEW===k}">${n}</button>`).join('')}</div>`;
+  if(BVIEW==='pie') return h+viewPie();
+  if(BVIEW==='cal') return h+viewCal();
+  return h+viewLimits();
+}
+function viewPie(){
+  const st=monthStats(S.month);const cats=Object.entries(st.byCat).sort((a,b)=>b[1]-a[1]);
+  if(!cats.length) return loadingOr(`<div class="card empty"><p class="muted" style="margin:0">Aucune dépense en ${monthLabel(S.month)}.</p></div>`);
+  const tot=st.exp,R=90,r=56,C=110;let a0=-Math.PI/2,paths='';
+  const pt=(rad,a)=>[C+rad*Math.cos(a),C+rad*Math.sin(a)].map(v=>v.toFixed(2)).join(' ');
+  for(const [k,v] of cats){const c=catOf(k);const frac=v/tot;
+    if(frac>=0.9999){paths+=`<circle cx="${C}" cy="${C}" r="${(R+r)/2}" fill="none" stroke="${c.color}" stroke-width="${R-r}"/>`;break}
+    const a1=a0+frac*2*Math.PI;const big=frac>0.5?1:0;
+    paths+=`<path d="M ${pt(R,a0)} A ${R} ${R} 0 ${big} 1 ${pt(R,a1)} L ${pt(r,a1)} A ${r} ${r} 0 ${big} 0 ${pt(r,a0)} Z" fill="${c.color}" stroke="var(--surface)" stroke-width="2"><title>${esc(c.name)} ${Math.round(frac*100)} %</title></path>`;a0=a1}
+  let h=`<div class="card sec"><h2>Dépenses de ${monthLabel(S.month)}</h2><div class="pie"><svg viewBox="0 0 220 220" role="img" aria-label="Répartition des dépenses par catégorie">${paths}
+    <text x="110" y="104" text-anchor="middle" font-size="11" fill="var(--muted)">Total</text><text x="110" y="124" text-anchor="middle" font-size="16" font-weight="700" fill="var(--ink)">${madShort(tot)}</text></svg></div>`;
+  h+=`<div class="list">`+cats.map(([k,v])=>{const c=catOf(k);const pct=v/tot*100;
+    return `<div class="leg"><i class="dot" style="background:${c.color}"></i><span class="n">${esc(c.name)}</span><span class="num muted">${mad(v)}</span><b class="num">${pct<1?'<1':Math.round(pct)} %</b></div>`}).join('')+`</div></div>`;
+  return h;
+}
+function dayExpenses(d){return S.tx.filter(t=>t.type==='expense'&&t.date===d)}
+function viewCal(){
+  const m=S.month,n=daysIn(m),first=(toDate(m+'-01').getDay()+6)%7,td=today();
+  const tot={};let max=0,sum=0;
+  for(const t of S.tx){if(t.type==='expense'&&t.date.startsWith(m)){tot[t.date]=(tot[t.date]||0)+t.amount}}
+  for(const v of Object.values(tot)){max=Math.max(max,v);sum+=v}
+  let cells='';for(let i=0;i<first;i++)cells+=`<div></div>`;
+  for(let d=1;d<=n;d++){const ds=m+'-'+pad(d),v=tot[ds]||0;const lvl=v?Math.max(.12,v/max):0;
+    cells+=`<button class="day-c ${ds===td?'today':''} ${v?'has':''}" data-day="${ds}" style="--lvl:${lvl.toFixed(2)}" aria-label="${d} : ${v?mad(v):'aucune dépense'}"><span class="d">${d}</span><span class="v num">${v?(v>=1000?(Math.round(v/100)/10).toString().replace('.',',')+'k':Math.round(v)):''}</span></button>`}
+  const days=Object.keys(tot).length;
+  return `<div class="card sec"><div class="sec-h"><h2>Dépenses par jour</h2><span class="muted num">${madShort(sum)}</span></div>
+    <div class="cal-h">${['L','M','M','J','V','S','D'].map(x=>`<span>${x}</span>`).join('')}</div><div class="cal">${cells}</div>
+    <small class="muted">${days?`${days} jour${days>1?'s':''} avec dépenses · moyenne ${madShort(sum/days)} par jour de dépense. `:''}Selon la date réelle de chaque dépense. Touche un jour pour voir le détail.</small></div>`;
+}
+function sheetDay(s){
+  const rows=dayExpenses(s.id).sort(txSort);const tot=rows.reduce((a,t)=>a+t.amount,0);
+  let h=head(esc(dayLabel(s.id).replace(/^./,c=>c.toUpperCase())));
+  h+=`<div class="sec-h"><span class="label">Total dépensé</span><b class="num neg">${mad(-tot)}</b></div>`;
+  h+=rows.length?`<div class="list">${rows.map(txRow).join('')}</div>`:`<p class="muted" style="margin:0">Aucune dépense ce jour-là.</p>`;
+  h+=`<button type="button" class="btn ghost" data-action="add-on-day">+ Ajouter une dépense ce jour</button>`;
+  return h;
+}
+function viewLimits(){
+  const st=monthStats(S.month);let h='';
   const set=CATS.expense.filter(c=>S.budgets[c.key]>0);
   const totLim=set.reduce((a,c)=>a+S.budgets[c.key],0),totSp=set.reduce((a,c)=>a+(st.byCat[c.key]||0),0);
   if(set.length){
@@ -531,7 +584,7 @@ function viewConfig(){
 const sheetRoot=document.getElementById('sheet-root');
 function openSheet(s){S.sheet=s;renderSheet();const sh=sheetRoot.querySelector('.sheet');if(sh)sh.scrollTop=0}
 function closeSheet(){S.sheet=null;sheetRoot.innerHTML=''}
-const SHEETS={tx:sheetTx,acc:sheetAcc,budget:sheetBudget,goal:sheetGoal,rec:sheetRec,cats:sheetCats,cat:sheetCat};
+const SHEETS={day:sheetDay,tx:sheetTx,acc:sheetAcc,budget:sheetBudget,goal:sheetGoal,rec:sheetRec,cats:sheetCats,cat:sheetCat};
 function renderSheet(){
   const s=S.sheet;if(!s){sheetRoot.innerHTML='';return}
   const old=sheetRoot.querySelector('.sheet');const st=old?old.scrollTop:0;
@@ -773,6 +826,8 @@ document.addEventListener('click',async e=>{
   if(ds.editRec){const r=S.recs.find(v=>v.id===ds.editRec);if(!r)return;
     openSheet({kind:'rec',id:r.id,orig:r,data:{type:r.type,note:r.note||'',amountStr:amtStr(r.amount),cat:r.cat,account:r.account,day:r.day,start:r.startMonth,active:r.active}});return}
   if(ds.editCat){const c=CAT[ds.editCat];if(!c)return;openSheet({kind:'cat',id:c.key,data:{name:c.name,color:c.color,hidden:c.hidden,type:c.type}});return}
+  if(ds.bview){BVIEW=ds.bview;try{localStorage.setItem('bview',BVIEW)}catch(e){}render();return}
+  if(ds.day){openSheet({kind:'day',id:ds.day});return}
   if(ds.budget){const k=ds.budget;openSheet({kind:'budget',id:k,data:{limitStr:S.budgets[k]?amtStr(S.budgets[k]):''}});return}
   if(ds.doRec){const r=S.recs.find(v=>v.id===ds.doRec);if(!r)return;
     const data={type:r.type,dir:'in',amountStr:amtStr(r.amount),cat:r.cat,goal:null,account:r.account,toAccount:r.account,date:ds.date,note:r.note||'',bmManual:false};
@@ -804,6 +859,7 @@ document.addEventListener('click',async e=>{
   else if(a==='cats')openCats(sh?.kind==='cat'?(CAT[sh.id]?.type||sh.data.type):'expense');
   else if(a==='new-cat')openSheet({kind:'cat',data:{name:'',type:sh?.data?.type||'expense',color:PALETTE[0],hidden:false}});
   else if(a==='export')exportCsv();
+  else if(a==='add-on-day'){const d=sh.id;newTx('expense',{date:d});S.sheet.data.bm=autoBm(S.sheet.data)}
   else if(a==='close'){if(sh?.kind==='goal'&&sh.back){S.sheet=sh.back;renderSheet()}else closeSheet()}
   else if(a==='del-tx'){if(confirmOr(sh))del('transactions',sh.id,'Opération supprimée')}
   else if(a==='del-goal'){if(S.tx.some(x=>x.goal===sh.id)){sh.err='Cet objectif a des mouvements d\'épargne. Retire d\'abord l\'argent ou supprime ces opérations.';renderSheet();return}
@@ -834,7 +890,7 @@ document.addEventListener('change',e=>{
 /* ---------- données (Supabase) ---------- */
 let rt=0;function schedule(){cancelAnimationFrame(rt);rt=requestAnimationFrame(()=>{
   const fq=document.activeElement?.id==='f-q';if(fq&&S.tab==='ops'){document.getElementById('ops-list').innerHTML=opsList();return}
-  render();if(S.sheet?.kind==='cats')renderSheet();})}
+  render();if(S.sheet?.kind==='cats'||S.sheet?.kind==='day')renderSheet();})}
 async function q(p){const {data,error}=await p;if(error)throw error;return data}
 async function opt(p){try{return {rows:await q(p),ok:true}}catch(e){console.warn(e);return {rows:[],ok:false}}}
 let loading=null;
