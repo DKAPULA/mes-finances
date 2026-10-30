@@ -160,6 +160,20 @@ textarea.field{resize:vertical;min-height:60px}
 .countdown .num{width:96px;height:96px;border-radius:999px;display:grid;place-items:center;font-family:var(--display);font-size:46px;font-weight:700;color:var(--expense);border:4px solid color-mix(in srgb,var(--expense) 35%,transparent);animation:pop .3s ease-out}
 @keyframes pop{from{transform:scale(.8);opacity:.5}}
 @media (prefers-reduced-motion:reduce){.countdown .num{animation:none}}
+.hero{position:relative}
+.hero>.eye+div{padding-right:44px}
+.eye{position:absolute;top:12px;right:12px;width:38px;height:38px;border-radius:999px;border:0;display:grid;place-items:center;background:color-mix(in srgb,var(--accent-ink) 16%,transparent);color:var(--accent-ink)}
+.report-card{display:flex;align-items:stretch;background:var(--surface);border:1px solid var(--accent);border-radius:var(--r);overflow:hidden}
+.report-main{flex:1;display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;border:0;background:none;text-align:left;padding:12px 4px 12px 14px;min-width:0}
+.report-main .bell{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.report-main .t{display:flex;flex-direction:column;min-width:0}.report-main small{color:var(--muted);font-size:12.5px}
+.report-x{border:0;background:none;color:var(--muted);font-size:20px;width:44px}
+.sheet .hero .quad{border-top:0;padding-top:0}
+.report-pts{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.hello{display:flex;flex-direction:column;min-width:0}
+.hello h1{font-size:26px;line-height:1.15;overflow-wrap:anywhere}
+.hello+.top{margin-top:-8px}
+.today-d{color:var(--muted);font-size:13.5px;min-width:0}
 /* chart */
 .chart svg{width:100%;height:auto;display:block}
 .legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
@@ -278,8 +292,10 @@ function dayLabel(s){if(s===today())return "Aujourd'hui";const yd=new Date();yd.
 function shortDate(s){return fmtShortDay.format(toDate(s))}
 const nf = new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const nf0 = new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0});
-function mad(n,sign){const s=nf.format(Math.abs(n))+' DH';if(sign&&n>0)return '+'+s;if(n<0)return '−'+s;return s}
-function madShort(n){return (n<0?'−':'')+nf0.format(Math.abs(n))+' DH'}
+let DISCREET=false;try{DISCREET=localStorage.getItem('discreet')==='1'}catch(e){}
+const HIDE='•••• DH';
+function mad(n,sign){if(DISCREET)return HIDE;const s=nf.format(Math.abs(n))+' DH';if(sign&&n>0)return '+'+s;if(n<0)return '−'+s;return s}
+function madShort(n){if(DISCREET)return HIDE;return (n<0?'−':'')+nf0.format(Math.abs(n))+' DH'}
 function amtStr(n){return nf.format(n).replace(/[\s  ]/g,'')}
 function parseAmt(s){const v=parseFloat(String(s).replace(/[\s  ]/g,'').replace(',','.'));return isFinite(v)?Math.round(v*100)/100:NaN}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -363,14 +379,16 @@ function progress(pct,col){return `<div class="track"><i style="width:${(Math.mi
 function viewHome(){
   const bal=balances(); const total=Object.values(bal).reduce((a,b)=>a+b,0); const saved=totalSaved();
   const st=monthStats(S.month);
-  let h=`<div class="top"><h1>Mes finances</h1>${monthSwitch()}</div>`;
-  h+=`<div class="card hero"><div><div class="label">Sur mes comptes · ${S.accounts.length} compte${S.accounts.length>1?'s':''}</div><div class="big num">${mad(total)}</div>${S.goals.length?`<div class="num" style="opacity:.85;font-weight:600">+ ${mad(saved)} épargnés</div>`:''}</div>
+  let h=`<div class="hello"><h1>${greeting()}</h1></div><div class="top"><small class="today-d">${esc(cap(fmtDay.format(new Date())))}</small>${monthSwitch()}</div>`;
+  h+=`<div class="card hero"><button class="eye" data-action="discreet" aria-label="${DISCREET?'Afficher les montants':'Masquer les montants'}" aria-pressed="${DISCREET}">${DISCREET?'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7c1.9 0 3.5-.5 4.9-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>':'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'}</button><div><div class="label">Sur mes comptes · ${S.accounts.length} compte${S.accounts.length>1?'s':''}</div><div class="big num">${mad(total)}</div>${S.goals.length?`<div class="num" style="opacity:.85;font-weight:600">+ ${mad(saved)} épargnés</div>`:''}</div>
     <div class="quad num"><div><span class="label">Revenus</span><b>${madShort(st.inc)}</b></div><div><span class="label">Dépenses</span><b>${madShort(st.exp)}</b></div><div><span class="label">Épargné</span><b>${madShort(st.sav)}</b></div><div><span class="label">Reste</span><b>${madShort(st.net)}</b></div></div></div>`;
 
   if(!S.accounts.length && S.status!=='loading'){
     h+=`<div class="card empty"><h2>Commence par tes comptes</h2><p class="muted">Crée tes comptes de base, puis mets leur solde actuel dans l'onglet Comptes.</p><button class="btn" data-action="seed-acc">Créer Compte courant + Espèces</button><button class="link" data-action="new-acc">Ou ajouter un compte personnalisé</button></div>`;
   }
 
+  const rep=reportDue();
+  if(rep) h+=`<div class="report-card"><button class="report-main" data-action="report" data-month="${rep}"><span class="bell"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></span><span class="t"><b>Ton bilan de ${monthName(rep)} est prêt</b><small>Touche pour voir le résumé du mois</small></span><span class="muted">›</span></button><button class="report-x" data-action="report-dismiss" data-month="${rep}" aria-label="Masquer">×</button></div>`;
   const pend=pendingRecs();
   if(pend.length){
     h+=`<div class="card sec"><div class="sec-h"><h2>À valider</h2><span class="muted">${pend.length} opération${pend.length>1?'s':''} prévue${pend.length>1?'s':''}</span></div><div class="list">`;
@@ -428,7 +446,7 @@ function chart6(){
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Revenus et dépenses des 6 derniers mois">${g}</svg>`;
 }
 function niceStep(max){const raw=max/4;const p=Math.pow(10,Math.floor(Math.log10(raw)));for(const m of [1,2,2.5,5,10]) if(raw<=m*p) return m*p;return 10*p}
-function kfmt(v){return v>=1000?nf0.format(v/1000)+' k':nf0.format(v)}
+function kfmt(v){if(DISCREET)return '•••';return v>=1000?nf0.format(v/1000)+' k':nf0.format(v)}
 
 function txIcon(t){
   if(t.type==='transfer') return `<div class="ic" style="background:var(--surface-2);color:var(--muted)">⇄</div>`;
@@ -503,7 +521,7 @@ function viewCal(){
   for(const v of Object.values(tot)){max=Math.max(max,v);sum+=v}
   let cells='';for(let i=0;i<first;i++)cells+=`<div></div>`;
   for(let d=1;d<=n;d++){const ds=m+'-'+pad(d),v=tot[ds]||0;const lvl=v?Math.max(.12,v/max):0;
-    cells+=`<button class="day-c ${ds===td?'today':''} ${v?'has':''}" data-day="${ds}" style="--lvl:${lvl.toFixed(2)}" aria-label="${d} : ${v?mad(v):'aucune dépense'}"><span class="d">${d}</span><span class="v num">${v?(v>=1000?(Math.round(v/100)/10).toString().replace('.',',')+'k':Math.round(v)):''}</span></button>`}
+    cells+=`<button class="day-c ${ds===td?'today':''} ${v?'has':''}" data-day="${ds}" style="--lvl:${lvl.toFixed(2)}" aria-label="${d} : ${v?mad(v):'aucune dépense'}"><span class="d">${d}</span><span class="v num">${v?DISCREET?'•••':(v>=1000?(Math.round(v/100)/10).toString().replace('.',',')+'k':Math.round(v)):''}</span></button>`}
   const days=Object.keys(tot).length;
   return `<div class="card sec"><div class="sec-h"><h2>Dépenses par jour</h2><span class="muted num">${madShort(sum)}</span></div>
     <div class="cal-h">${['L','M','M','J','V','S','D'].map(x=>`<span>${x}</span>`).join('')}</div><div class="cal">${cells}</div>
@@ -552,7 +570,7 @@ function viewLimits(){
 function viewAccounts(){
   const bal=balances();const total=Object.values(bal).reduce((a,b)=>a+b,0);const saved=totalSaved();
   let h=`<div class="top"><h1>Comptes</h1></div>`;
-  h+=`<div class="card hero"><div><div class="label">Patrimoine total</div><div class="big num">${mad(total+saved)}</div></div>
+  h+=`<div class="card hero"><button class="eye" data-action="discreet" aria-label="${DISCREET?'Afficher les montants':'Masquer les montants'}" aria-pressed="${DISCREET}">${DISCREET?'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7c1.9 0 3.5-.5 4.9-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>':'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'}</button><div><div class="label">Patrimoine total</div><div class="big num">${mad(total+saved)}</div></div>
     <div class="quad num" style="grid-template-columns:1fr 1fr"><div><span class="label">Sur mes comptes</span><b>${madShort(total)}</b></div><div><span class="label">Épargné</span><b>${madShort(saved)}</b></div></div></div>`;
   h+=`<div class="card sec"><div class="sec-h"><h2>Mes comptes</h2><button class="link" data-action="new-acc">+ Ajouter</button></div>`;
   if(!S.accounts.length) h+=loadingOr(`<p class="muted" style="margin:0">Aucun compte pour l'instant.</p>`);
@@ -575,6 +593,7 @@ function viewAccounts(){
     <button class="acc" data-action="reminder"><div class="ic" style="background:var(--surface-2);color:var(--ink)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></div><div><div>Rappel du soir</div><small class="muted">Une notification si tu n'as rien noté de la journée</small></div><span class="muted">›</span></button>
     <button class="acc" data-action="export"><div class="ic" style="background:var(--surface-2);color:var(--ink)">⇩</div><div><div>Exporter mes opérations</div><small class="muted">Fichier CSV, s'ouvre dans Excel ou Numbers</small></div><span class="muted">›</span></button>
   </div></div>`;
+  h+=`<div class="card sec"><div class="sec-h"><span class="label">Mon prénom</span><button class="link" data-action="name">${firstName()?'Modifier':'Ajouter'}</button></div><span>${esc(firstName()||'Non renseigné')}</span></div>`;
   h+=`<div class="card sec"><span class="label">Connecté</span><span>${esc(S.user?.email||'')}</span><button class="btn ghost" data-action="logout">Se déconnecter</button></div>`;
   return h;
 }
@@ -583,8 +602,8 @@ function viewAuth(){
   const signup=S.authMode==='signup';
   return `<form class="auth" id="auth-form">
     <img class="logo" src="icon-192.png" alt="">
-    <h1>${signup?'Créer mon compte':'Mes finances'}</h1>
-    <p class="muted" style="margin:0">${signup?'Choisis un email et un mot de passe (8 caractères minimum).':'Connecte-toi pour retrouver tes comptes et tes budgets.'}</p>
+    <h1>${signup?'Créer mon compte':'Bienvenue'}</h1>
+    <p class="muted" style="margin:0">${signup?'Choisis un email et un mot de passe (8 caractères minimum).':'Heureux de te revoir. Connecte-toi pour retrouver tes comptes et tes budgets.'}</p>
     <label class="f"><span class="label">Email</span><input id="au-email" class="field" type="email" autocomplete="email" autocapitalize="off" required></label>
     <label class="f"><span class="label">Mot de passe</span><input id="au-pass" class="field" type="password" autocomplete="${signup?'new-password':'current-password'}" minlength="8" required></label>
     ${S.authErr?`<div class="err">${esc(S.authErr)}</div>`:''}${S.authMsg?`<div class="ok">${esc(S.authMsg)}</div>`:''}
@@ -624,7 +643,7 @@ function viewImage(url){const v=document.getElementById('viewer');v.innerHTML=`<
 function openSheet(s){S.sheet=s;renderSheet();const sh=sheetRoot.querySelector('.sheet');if(sh)sh.scrollTop=0}
 function closeSheet(){clearInterval(logoutTimer);S.sheet=null;sheetRoot.innerHTML=''}
 let logoutTimer=0;
-const SHEETS={logout:sheetLogout,reminder:sheetReminder,day:sheetDay,tx:sheetTx,acc:sheetAcc,budget:sheetBudget,goal:sheetGoal,rec:sheetRec,cats:sheetCats,cat:sheetCat};
+const SHEETS={name:sheetName,report:sheetReport,logout:sheetLogout,reminder:sheetReminder,day:sheetDay,tx:sheetTx,acc:sheetAcc,budget:sheetBudget,goal:sheetGoal,rec:sheetRec,cats:sheetCats,cat:sheetCat};
 function renderSheet(){
   const s=S.sheet;if(!s){sheetRoot.innerHTML='';return}
   const old=sheetRoot.querySelector('.sheet');const st=old?old.scrollTop:0;
@@ -903,6 +922,49 @@ function sheetLogout(s){
     <button type="button" class="btn ghost" data-action="close">Annuler</button>`;
   return `<div class="countdown"><span class="muted" style="font-size:18px">Déconnexion…</span></div>`;
 }
+const fmtMonthName=new Intl.DateTimeFormat('fr-FR',{month:'long'});
+function monthName(m){const [y,mo]=m.split('-').map(Number);return fmtMonthName.format(new Date(y,mo-1,1))}
+function reportDue(){
+  const prev=shiftMonth(ym(new Date()),-1);let seen='';try{seen=localStorage.getItem('reportSeen')||''}catch(e){}
+  if(seen>=prev) return null;
+  return monthTx(prev).length?prev:null;
+}
+function sheetReport(s){
+  const m=s.id,st=monthStats(m),pv=monthStats(shiftMonth(m,-1));
+  const cats=Object.entries(st.byCat).sort((a,b)=>b[1]-a[1]);
+  const exps=monthTx(m).filter(t=>t.type==='expense');const big=exps.sort((a,b)=>b.amount-a.amount)[0];
+  const spentDays=new Set(S.tx.filter(t=>t.type==='expense'&&t.date.startsWith(m)).map(t=>t.date)).size;
+  const over=Object.entries(S.budgets).filter(([k,l])=>l&&(st.byCat[k]||0)>l);
+  let h=head('Bilan de '+esc(monthLabel(m)));
+  h+=`<div class="card hero" style="gap:10px"><div class="quad num"><div><span class="label">Revenus</span><b>${madShort(st.inc)}</b></div><div><span class="label">Dépenses</span><b>${madShort(st.exp)}</b></div><div><span class="label">Épargné</span><b>${madShort(st.sav)}</b></div><div><span class="label">Reste</span><b>${madShort(st.net)}</b></div></div></div>`;
+  const pts=[];
+  if(pv.exp>0){const d=(st.exp-pv.exp)/pv.exp*100;pts.push(`Dépenses <b class="${d>0?'neg':'pos'}">${d>0?'+':'−'}${Math.abs(Math.round(d))} %</b> par rapport à ${esc(monthName(shiftMonth(m,-1)))}.`)}
+  if(st.inc>0) pts.push(`Tu as épargné <b>${Math.max(0,Math.round(st.sav/st.inc*100))} %</b> de tes revenus.`);
+  if(big) pts.push(`Plus grosse dépense : <b>${esc(big.note||catOf(big.cat).name)}</b>, ${mad(big.amount)} le ${shortDate(big.date).replace(/\.$/,'')}.`);
+  pts.push(`${spentDays} jour${spentDays>1?'s':''} avec des dépenses sur ${daysIn(m)}.`);
+  if(over.length) pts.push(`Budget dépassé : ${over.map(([k])=>`<b>${esc(catOf(k).name)}</b>`).join(', ')}.`);
+  else if(Object.values(S.budgets).some(Boolean)) pts.push('Tous tes budgets ont été respectés.');
+  h+=`<ul class="report-pts">${pts.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+  if(cats.length){h+=`<div class="f"><span class="label">Top catégories</span><div class="bars">`+cats.slice(0,3).map(([k,v])=>{const c=catOf(k);
+    return `<div class="bar-row"><div class="name"><i class="dot" style="background:${c.color}"></i><span>${esc(c.name)}</span></div><span class="num">${madShort(v)} <span class="muted">· ${Math.round(v/st.exp*100)} %</span></span><div class="track"><i style="width:${(v/cats[0][1]*100).toFixed(1)}%;background:${c.color}"></i></div></div>`}).join('')+`</div></div>`}
+  h+=`<div class="actions"><button type="button" class="btn ghost" data-action="report-pie" data-month="${m}">Voir le détail</button><button type="button" class="btn" data-action="report-ok" data-month="${m}">C'est noté</button></div>`;
+  return h;
+}
+function markReport(m){try{localStorage.setItem('reportSeen',m)}catch(e){}}
+function cap(x){return x.charAt(0).toUpperCase()+x.slice(1)}
+function firstName(){return (S.user?.user_metadata?.first_name||'').trim()}
+function greeting(){const h=new Date().getHours();const w=h>=18||h<5?'Bonsoir':'Bonjour';const n=firstName();return n?`${w}, ${esc(n)}`:w}
+function sheetName(s){
+  let h=head('Ton prénom');
+  h+=`<p class="muted" style="margin:0">Il s'affiche dans le message de bienvenue de l'accueil.</p>`;
+  h+=`<label class="f"><span class="label">Prénom</span><input id="n-name" class="field" autocomplete="given-name" value="${esc(s.data.name)}" placeholder="Ex. David" data-autofocus maxlength="30"></label>`;
+  return h+errLine(s)+`<div class="actions"><button type="submit" class="btn">Enregistrer</button></div>`;
+}
+async function saveName(){
+  const s=S.sheet;const name=document.getElementById('n-name').value.trim().slice(0,30);s.data.name=name;
+  try{const {data,error}=await S.sb.auth.updateUser({data:{first_name:name}});if(error)throw error;if(data?.user)S.user=data.user;closeSheet();render();toast(name?'Enchanté, '+name+' !':'Prénom retiré')}
+  catch(e){s.err="Impossible d'enregistrer ("+(e?.message||e)+").";renderSheet()}
+}
 function openCats(type){openSheet({kind:'cats',data:{type:type||'expense'}})}
 
 async function exportCsv(){
@@ -971,6 +1033,12 @@ document.addEventListener('click',async e=>{
   else if(a==='cats')openCats(sh?.kind==='cat'?(CAT[sh.id]?.type||sh.data.type):'expense');
   else if(a==='new-cat')openSheet({kind:'cat',data:{name:'',type:sh?.data?.type||'expense',color:PALETTE[0],hidden:false}});
   else if(a==='export')exportCsv();
+  else if(a==='name')openSheet({kind:'name',data:{name:firstName()}});
+  else if(a==='discreet'){DISCREET=!DISCREET;try{localStorage.setItem('discreet',DISCREET?'1':'0')}catch(e){}render();toast(DISCREET?'Montants masqués':'Montants affichés')}
+  else if(a==='report')openSheet({kind:'report',id:ds.month});
+  else if(a==='report-dismiss'){markReport(ds.month);render()}
+  else if(a==='report-ok'){markReport(ds.month);closeSheet();render()}
+  else if(a==='report-pie'){markReport(ds.month);closeSheet();S.month=ds.month;S.tab='budgets';BVIEW='pie';try{localStorage.setItem('bview','pie')}catch(e){}render();scrollTo(0,0)}
   else if(a==='add-on-day'){const d=sh.id;newTx('expense',{date:d});S.sheet.data.bm=autoBm(S.sheet.data)}
   else if(a==='close'){if(sh?.kind==='goal'&&sh.back){S.sheet=sh.back;renderSheet()}else closeSheet()}
   else if(a==='del-tx'){if(confirmOr(sh)){const rp=sh.data.receiptPath;await del('transactions',sh.id,'Opération supprimée');if(rp&&!S.tx.some(x=>x.id===sh.id))S.sb.storage.from('receipts').remove([rp]).catch(()=>{})}}
@@ -999,7 +1067,7 @@ document.addEventListener('click',async e=>{
       clearInterval(logoutTimer);st.data.phase='out';renderSheet();await S.sb.auth.signOut()},1000)}
 });
 document.addEventListener('submit',e=>{e.preventDefault();if(e.target.id==='auth-form'){doAuth();return}
-  const k=S.sheet?.kind;({tx:saveTx,acc:saveAcc,budget:saveBudget,goal:saveGoal,rec:saveRec,cat:saveCat})[k]?.()});
+  const k=S.sheet?.kind;({name:saveName,tx:saveTx,acc:saveAcc,budget:saveBudget,goal:saveGoal,rec:saveRec,cat:saveCat})[k]?.()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const v=document.getElementById('viewer');if(!v.hidden){v.hidden=true;return}if(S.sheet)closeSheet()}});
 document.getElementById('viewer').addEventListener('click',e=>{e.currentTarget.hidden=true;e.currentTarget.innerHTML=''});
 document.addEventListener('input',e=>{if(e.target.id==='f-q'){S.filter.q=e.target.value;document.getElementById('ops-list').innerHTML=opsList()}});

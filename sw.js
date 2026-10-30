@@ -1,5 +1,5 @@
 // Garde l'interface en cache pour un démarrage rapide. Les données passent toujours par le réseau.
-const VERSION = 'mes-finances-v9';
+const VERSION = 'mes-finances-v11';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest',
   './apple-touch-icon.png', './icon-192.png', './icon-512.png'];
 
