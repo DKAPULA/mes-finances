@@ -156,6 +156,10 @@ textarea.field{resize:vertical;min-height:60px}
 .viewer img{max-width:100%;max-height:100%;border-radius:8px}
 .viewer .x{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:16px;background:rgba(255,255,255,.15);color:#fff}
 .ok-b{color:var(--income);font-weight:600}
+.countdown{display:grid;place-items:center;padding:8px 0}
+.countdown .num{width:96px;height:96px;border-radius:999px;display:grid;place-items:center;font-family:var(--display);font-size:46px;font-weight:700;color:var(--expense);border:4px solid color-mix(in srgb,var(--expense) 35%,transparent);animation:pop .3s ease-out}
+@keyframes pop{from{transform:scale(.8);opacity:.5}}
+@media (prefers-reduced-motion:reduce){.countdown .num{animation:none}}
 /* chart */
 .chart svg{width:100%;height:auto;display:block}
 .legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
@@ -618,8 +622,9 @@ async function loadReceiptUrl(s){
 }
 function viewImage(url){const v=document.getElementById('viewer');v.innerHTML=`<img src="${esc(url)}" alt="Ticket"><button class="x" aria-label="Fermer">×</button>`;v.hidden=false}
 function openSheet(s){S.sheet=s;renderSheet();const sh=sheetRoot.querySelector('.sheet');if(sh)sh.scrollTop=0}
-function closeSheet(){S.sheet=null;sheetRoot.innerHTML=''}
-const SHEETS={reminder:sheetReminder,day:sheetDay,tx:sheetTx,acc:sheetAcc,budget:sheetBudget,goal:sheetGoal,rec:sheetRec,cats:sheetCats,cat:sheetCat};
+function closeSheet(){clearInterval(logoutTimer);S.sheet=null;sheetRoot.innerHTML=''}
+let logoutTimer=0;
+const SHEETS={logout:sheetLogout,reminder:sheetReminder,day:sheetDay,tx:sheetTx,acc:sheetAcc,budget:sheetBudget,goal:sheetGoal,rec:sheetRec,cats:sheetCats,cat:sheetCat};
 function renderSheet(){
   const s=S.sheet;if(!s){sheetRoot.innerHTML='';return}
   const old=sheetRoot.querySelector('.sheet');const st=old?old.scrollTop:0;
@@ -883,10 +888,20 @@ async function saveHour(h){
 }
 async function testPush(){
   const s=S.sheet;s.data.busy=true;s.err='';renderSheet();
-  try{const {data,error}=await S.sb.functions.invoke('rappel',{body:{test:true}});if(error)throw error;
+  try{const {data,error}=await S.sb.functions.invoke('rappel',{body:{test:true}});
+    if(error){let det='';try{const r=error.context;det=r?` [${r.status}] `+(await r.text()).slice(0,200):''}catch(_){}throw new Error((error.message||'erreur')+det)}
     toast(data?.sent?'Test envoyé : regarde tes notifications':'Aucun appareil trouvé')}
-  catch(e){s.err="Le test a échoué. Vérifie que la fonction « rappel » est déployée dans Supabase ("+(e?.message||e)+").";}
+  catch(e){s.err="Le test a échoué : "+(e?.message||e);}
   s.data.busy=false;if(S.sheet===s)renderSheet();
+}
+function sheetLogout(s){
+  const d=s.data;
+  if(d.phase==='confirm') return head('Se déconnecter ?')+`<p class="muted" style="margin:0">Tu devras saisir à nouveau ton email et ton mot de passe pour revenir dans l'appli. Tes données restent enregistrées.</p>
+    <div class="actions"><button type="button" class="btn ghost" data-action="close">Annuler</button><button type="button" class="btn danger sure" data-action="logout-go">Me déconnecter</button></div>`;
+  if(d.phase==='count') return head('Déconnexion…')+`<div class="countdown" aria-live="polite"><span class="num">${d.n}</span></div>
+    <p class="muted" style="margin:0;text-align:center">Déconnexion dans ${d.n} seconde${d.n>1?'s':''}.</p>
+    <button type="button" class="btn ghost" data-action="close">Annuler</button>`;
+  return `<div class="countdown"><span class="muted" style="font-size:18px">Déconnexion…</span></div>`;
 }
 function openCats(type){openSheet({kind:'cats',data:{type:type||'expense'}})}
 
@@ -977,7 +992,11 @@ document.addEventListener('click',async e=>{
   else if(a==='seed-acc'){if(await guard(()=>q(S.sb.from('accounts').insert([{name:'Compte courant',kind:'courant',initial:0,sort:1,user_id:S.user.id},{name:'Espèces',kind:'especes',initial:0,sort:2,user_id:S.user.id}]))))toast('Comptes créés')}
   else if(a==='reload'){S.status='loading';render();loadAll()}
   else if(a==='auth-toggle'){S.authMode=S.authMode==='login'?'signup':'login';S.authErr='';S.authMsg='';render()}
-  else if(a==='logout'){await S.sb.auth.signOut()}
+  else if(a==='logout')openSheet({kind:'logout',data:{phase:'confirm'}});
+  else if(a==='logout-go'){const st=S.sheet;st.data.phase='count';st.data.n=3;renderSheet();
+    clearInterval(logoutTimer);logoutTimer=setInterval(async()=>{if(S.sheet!==st){clearInterval(logoutTimer);return}
+      st.data.n--;if(st.data.n>0){renderSheet();return}
+      clearInterval(logoutTimer);st.data.phase='out';renderSheet();await S.sb.auth.signOut()},1000)}
 });
 document.addEventListener('submit',e=>{e.preventDefault();if(e.target.id==='auth-form'){doAuth();return}
   const k=S.sheet?.kind;({tx:saveTx,acc:saveAcc,budget:saveBudget,goal:saveGoal,rec:saveRec,cat:saveCat})[k]?.()});
