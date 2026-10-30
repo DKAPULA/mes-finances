@@ -1,7 +1,7 @@
 // Garde l'interface en cache pour un démarrage rapide. Les données passent toujours par le réseau.
-const VERSION = 'mes-finances-v4';
+const VERSION = 'mes-finances-v5';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest',
-  './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png'];
+  './apple-touch-icon.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
