@@ -1,5 +1,5 @@
 // Garde l'interface en cache pour un démarrage rapide. Les données passent toujours par le réseau.
-const VERSION = 'mes-finances-v11';
+const VERSION = 'mes-finances-v15';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest',
   './apple-touch-icon.png', './icon-192.png', './icon-512.png'];
 
@@ -25,7 +25,7 @@ self.addEventListener('push', e => {
   try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data && e.data.text() }; }
   e.waitUntil(self.registration.showNotification(d.title || 'Mes Finances', {
     body: d.body || "N'oublie pas de noter tes dépenses du jour.",
-    icon: 'icon-192.png', badge: 'icon-192.png', tag: 'rappel', data: { url: d.url || './' }
+    icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || 'rappel', data: { url: d.url || './' }
   }));
 });
 self.addEventListener('notificationclick', e => {
