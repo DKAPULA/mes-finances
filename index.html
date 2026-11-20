@@ -194,6 +194,11 @@ textarea.field{resize:vertical;min-height:60px}
 .acc-nav button{border:0;background:none;color:var(--accent-ink);width:30px;height:30px;border-radius:999px;font-size:18px;flex:none}
 .acc-nav button:hover{opacity:.7}
 .acc-nav span{font-weight:700;font-size:13.5px;letter-spacing:.02em;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;text-align:center}
+.bar-row.tap{border:0;background:none;padding:0;text-align:left;width:100%;font:inherit;color:inherit;cursor:pointer}
+.catd-big{font-family:var(--display);font-size:32px;font-weight:700;line-height:1.1;margin:2px 0}
+.pillx{display:inline-flex;padding:6px 10px;border-radius:999px;font-size:12.5px;font-weight:600;background:var(--surface-2);color:var(--muted)}
+.pillx.up{background:color-mix(in srgb,var(--expense) 14%,transparent);color:var(--expense)}
+.pillx.down{background:color-mix(in srgb,var(--income) 14%,transparent);color:var(--income)}
 /* chart */
 .chart svg{width:100%;height:auto;display:block}
 .legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
@@ -437,7 +442,7 @@ function viewHome(){
   h+=`<div class="card sec"><div class="sec-h"><h2>Dépenses par catégorie</h2><span class="muted num">${madShort(st.exp)}</span></div>`;
   if(!cats.length) h+=loadingOr(`<p class="muted" style="margin:0">Aucune dépense en ${monthLabel(S.month)}.</p>`);
   else { const max=cats[0][1]; h+=`<div class="bars">`+cats.map(([k,v])=>{const c=catOf(k);
-      return `<div class="bar-row"><div class="name"><i class="dot" style="background:${c.color}"></i><span>${esc(c.name)}</span></div><span class="num">${mad(v)} <span class="muted">· ${Math.round(v/st.exp*100)} %</span></span><div class="track"><i style="width:${(v/max*100).toFixed(1)}%;background:${c.color}"></i></div></div>`}).join('')+`</div>`; }
+      return `<button class="bar-row tap" data-cat-detail="${esc(k)}"><div class="name"><i class="dot" style="background:${c.color}"></i><span>${esc(c.name)}</span></div><span class="num">${mad(v)} <span class="muted">· ${Math.round(v/st.exp*100)} %</span> <span class="muted">›</span></span><div class="track"><i style="width:${(v/max*100).toFixed(1)}%;background:${c.color}"></i></div></button>`}).join('')+`</div>`; }
   h+=`</div>`;
 
   if(S.goals.length){
@@ -672,7 +677,7 @@ function viewImage(url){const v=document.getElementById('viewer');v.innerHTML=`<
 function openSheet(s){S.sheet=s;renderSheet();const sh=sheetRoot.querySelector('.sheet');if(sh)sh.scrollTop=0}
 function closeSheet(){clearInterval(logoutTimer);S.sheet=null;sheetRoot.innerHTML=''}
 let logoutTimer=0;
-const SHEETS={plans:sheetPlans,plan:sheetPlan,name:sheetName,report:sheetReport,logout:sheetLogout,reminder:sheetReminder,day:sheetDay,tx:sheetTx,acc:sheetAcc,budget:sheetBudget,goal:sheetGoal,rec:sheetRec,cats:sheetCats,cat:sheetCat};
+const SHEETS={catd:sheetCatDetail,plans:sheetPlans,plan:sheetPlan,name:sheetName,report:sheetReport,logout:sheetLogout,reminder:sheetReminder,day:sheetDay,tx:sheetTx,acc:sheetAcc,budget:sheetBudget,goal:sheetGoal,rec:sheetRec,cats:sheetCats,cat:sheetCat};
 function renderSheet(){
   const s=S.sheet;if(!s){sheetRoot.innerHTML='';return}
   const old=sheetRoot.querySelector('.sheet');const st=old?old.scrollTop:0;
@@ -1032,6 +1037,22 @@ async function savePlan(){
   const ok=await guard(()=>q(s.id?S.sb.from('planned').update(row).eq('id',s.id):S.sb.from('planned').insert({...row,user_id:S.user.id})));
   if(ok){openSheet({kind:'plans'});toast(s.id?'Achat prévu modifié':'Ajouté à la liste')}
 }
+function sheetCatDetail(s){
+  const k=s.id,m=S.month,acc=homeAcc(),c=catOf(k);const st=monthStats(m,acc),pv=monthStats(shiftMonth(m,-1),acc);
+  const v=st.byCat[k]||0,pvv=pv.byCat[k]||0;const rows=monthTx(m,acc).filter(t=>t.type==='expense'&&t.cat===k).sort(txSort);
+  let h=head(`<span class="dot" style="background:${c.color};display:inline-block;margin-right:8px"></span>${esc(c.name)}`);
+  h+=`<div><span class="label">${esc(monthLabel(m))}${acc?' · '+esc(accName(acc)):''}</span><div class="catd-big num">${mad(v)}</div><small class="muted">${st.exp?Math.round(v/st.exp*100):0} % de tes dépenses du mois · ${rows.length} opération${rows.length>1?'s':''}</small></div>`;
+  const pts=[];const pm=monthName(shiftMonth(m,-1));
+  if(pvv){const d=(v-pvv)/pvv*100;pts.push(Math.round(d)===0?`<span class="pillx">Stable vs ${esc(pm)}</span>`:`<span class="pillx ${d>0?'up':'down'}">${d>0?'▲ +':'▼ −'}${Math.abs(Math.round(d))} % vs ${esc(pm)}</span>`)}
+  else pts.push(`<span class="pillx">Rien en ${esc(pm)}</span>`);
+  if(rows.length>1) pts.push(`<span class="pillx">Moyenne ${madShort(v/rows.length)} / opération</span>`);
+  h+=`<div class="pills">${pts.join('')}</div>`;
+  const lim=S.budgets[k];
+  if(lim){const r=v/lim;const col=r>=1?'var(--expense)':r>=.8?'var(--warn)':c.color;h+=`<div class="f"><div class="sec-h"><span class="label">Budget du mois</span><span class="num"><b>${madShort(v)}</b> <span class="muted">/ ${madShort(lim)}</span></span></div>${progress(r,col)}<small class="muted">${lim-v>=0?`Il reste ${mad(lim-v)}.`:`Dépassé de ${mad(v-lim)}.`}</small></div>`}
+  h+=`<div class="f"><span class="label">Opérations</span>${rows.length?`<div class="list">${rows.map(txRow).join('')}</div>`:'<p class="muted" style="margin:0">Aucune dépense dans cette catégorie ce mois-ci.</p>'}</div>`;
+  h+=`<div class="actions">${lim?'':`<button type="button" class="btn ghost" data-budget="${esc(k)}">Fixer un budget</button>`}<button type="button" class="btn ghost" data-action="cat-to-ops" data-cat-ops="${esc(k)}">Voir dans Opérations</button></div>`;
+  return h;
+}
 function openCats(type){openSheet({kind:'cats',data:{type:type||'expense'}})}
 
 async function exportCsv(){
@@ -1076,6 +1097,7 @@ document.addEventListener('click',async e=>{
     if(!S.accounts.length){toast("Ajoute d'abord un compte.");return}
     const data={type:'expense',dir:'in',amountStr:p.estimate?amtStr(p.estimate):'',cat:p.cat||visCats('expense')[0]?.key,goal:null,account:homeAcc()||S.accounts[0].id,toAccount:S.accounts[0].id,date:today(),note:p.title,bmManual:false};
     data.bm=autoBm(data);openSheet({kind:'tx',plan:p,data});return}
+  if(ds.catDetail){openSheet({kind:'catd',id:ds.catDetail});return}
   if(ds.budget){const k=ds.budget;openSheet({kind:'budget',id:k,data:{limitStr:S.budgets[k]?amtStr(S.budgets[k]):''}});return}
   if(ds.doRec){const r=S.recs.find(v=>v.id===ds.doRec);if(!r)return;
     const data={type:r.type,dir:'in',amountStr:amtStr(r.amount),cat:r.cat,goal:null,account:r.account,toAccount:r.account,date:ds.date,note:r.note||'',bmManual:false};
@@ -1108,6 +1130,7 @@ document.addEventListener('click',async e=>{
   else if(a==='new-cat')openSheet({kind:'cat',data:{name:'',type:sh?.data?.type||'expense',color:PALETTE[0],hidden:false}});
   else if(a==='export')exportCsv();
   else if(a==='plans')openSheet({kind:'plans'});
+  else if(a==='cat-to-ops'){S.filter={acc:homeAcc(),cat:ds.catOps,q:''};closeSheet();S.tab='ops';render();scrollTo(0,0)}
   else if(a==='acc-prev'||a==='acc-next'){const ids=['',...S.accounts.map(x=>x.id)];let k=ids.indexOf(homeAcc());k=(k+(a==='acc-next'?1:-1)+ids.length)%ids.length;HOMEACC=ids[k];try{localStorage.setItem('homeAcc',HOMEACC)}catch(e){}render()}
   else if(a==='new-plan')openSheet({kind:'plan',data:{title:'',cat:null,estStr:'',remindOn:''}});
   else if(a==='name')openSheet({kind:'name',data:{name:firstName()}});
@@ -1162,7 +1185,7 @@ document.addEventListener('change',async e=>{
 /* ---------- données (Supabase) ---------- */
 let rt=0;function schedule(){cancelAnimationFrame(rt);rt=requestAnimationFrame(()=>{
   const fq=document.activeElement?.id==='f-q';if(fq&&S.tab==='ops'){document.getElementById('ops-list').innerHTML=opsList();return}
-  render();if(['cats','day','plans'].includes(S.sheet?.kind))renderSheet();})}
+  render();if(['cats','day','plans','catd'].includes(S.sheet?.kind))renderSheet();})}
 async function q(p){const {data,error}=await p;if(error)throw error;return data}
 async function opt(p){try{return {rows:await q(p),ok:true}}catch(e){console.warn(e);return {rows:[],ok:false}}}
 let loading=null;
